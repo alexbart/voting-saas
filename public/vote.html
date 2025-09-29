@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cast Vote — Voting SaaS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+</head>
+<body class="hold-transition sidebar-mini">
+  <div class="wrapper">
+    <div class="content-wrapper">
+      <div class="content-header">
+        <div class="container-fluid">
+          <h1 class="m-0">Cast Your Vote</h1>
+        </div>
+      </div>
+      <div class="content">
+        <div class="container-fluid">
+          <div id="ballot" class="card">
+            <div class="card-body">
+              <h5 id="question" class="card-title">Loading...</h5>
+              <div id="options" class="mt-3"></div>
+              <button id="submitVote" class="btn btn-success mt-3">Submit Vote</button>
+              <a href="dashboard.html" class="btn btn-secondary mt-3 ml-2">Back</a>
+            </div>
+          </div>
+          <div id="result" class="mt-3 d-none"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = 'index.html';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const electionId = urlParams.get('id');
+    let ballotId = null;
+
+    async function loadBallot() {
+      try {
+        const res = await fetch(`/api/elections/${electionId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          const ballot = data.data.ballot;
+          ballotId = ballot.id;
+          document.getElementById('question').textContent = ballot.question;
+          const optionsHtml = ballot.options.map(opt => `
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="selection" value="${opt}" id="opt_${opt}">
+              <label class="form-check-label" for="opt_${opt}">${opt}</label>
+            </div>
+          `).join('');
+          document.getElementById('options').innerHTML = optionsHtml;
+        }
+      } catch (err) {
+        document.getElementById('ballot').innerHTML = '<div class="alert alert-danger">Failed to load ballot</div>';
+      }
+    }
+
+    document.getElementById('submitVote').addEventListener('click', async () => {
+      const selection = document.querySelector('input[name="selection"]:checked')?.value;
+      if (!selection) {
+        alert('Please select a candidate');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/votes/cast', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ballot_id: ballotId, selection })
+        });
+        const data = await res.json();
+        const resultDiv = document.getElementById('result');
+        if (data.success) {
+          resultDiv.className = 'alert alert-success d-block';
+          resultDiv.textContent = '✅ Your vote has been recorded!';
+          document.getElementById('submitVote').disabled = true;
+        } else {
+          resultDiv.className = 'alert alert-danger d-block';
+          resultDiv.textContent = data.message;
+        }
+      } catch (err) {
+        document.getElementById('result').innerHTML = '<div class="alert alert-danger">Network error</div>';
+      }
+    });
+
+    loadBallot();
+  </script>
+</body>
+</html>

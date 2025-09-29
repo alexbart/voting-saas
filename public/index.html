@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voter Login — Voting SaaS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+</head>
+<body class="hold-transition login-page">
+  <div class="login-box">
+    <div class="card card-outline card-primary">
+      <div class="card-header text-center">
+        <a href="#" class="h3"><b>Voting</b> SaaS</a>
+      </div>
+      <div class="card-body">
+        <p class="login-box-msg">Sign in to cast your vote</p>
+        <div id="alert" class="alert alert-danger d-none"></div>
+        <form id="loginForm">
+          <div class="input-group mb-3">
+            <input type="email" class="form-control" id="email" placeholder="Email" required>
+            <div class="input-group-append">
+              <div class="input-group-text"><span class="fas fa-envelope"></span></div>
+            </div>
+          </div>
+          <div class="input-group mb-3">
+            <input type="password" class="form-control" id="password" placeholder="Password" required>
+            <div class="input-group-append">
+              <div class="input-group-text"><span class="fas fa-lock"></span></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const alert = document.getElementById('alert');
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          localStorage.setItem('token', data.data.token);
+          window.location.href = 'dashboard.html';
+        } else {
+          alert.textContent = data.message;
+          alert.classList.remove('d-none');
+        }
+      } catch (err) {
+        alert.textContent = 'Network error';
+        alert.classList.remove('d-none');
+      }
+    });
+  </script>
+</body>
+</html>

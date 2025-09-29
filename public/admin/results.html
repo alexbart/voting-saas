@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Election Results — Voting SaaS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="hold-transition sidebar-mini">
+  <div class="wrapper">
+    <div class="content-wrapper">
+      <div class="content-header">
+        <div class="container-fluid">
+          <h1 class="m-0">Election Results</h1>
+          <a href="dashboard.html" class="btn btn-secondary mt-2">← Back to Dashboard</a>
+        </div>
+      </div>
+      <div class="content">
+        <div class="container-fluid">
+          <div class="card">
+            <div class="card-body">
+              <h5 id="election-title">Loading...</h5>
+              <canvas id="results-chart" height="100"></canvas>
+              <div id="tallies" class="mt-4"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '../index.html';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const electionId = urlParams.get('id');
+
+    async function loadResults() {
+      try {
+        const electionRes = await fetch(`/api/elections/${electionId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const electionData = await electionRes.json();
+        document.getElementById('election-title').textContent = electionData.data.title;
+
+        const resultsRes = await fetch(`/api/votes/results/${electionId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const resultsData = await resultsRes.json();
+        const ballot = resultsData.data[0];
+
+        // Render tallies
+        let talliesHtml = '<h6>Votes:</h6><ul>';
+        Object.entries(ballot.tallies).forEach(([candidate, votes]) => {
+          talliesHtml += `<li>${candidate}: ${votes} vote(s)</li>`;
+        });
+        talliesHtml += '</ul>';
+        document.getElementById('tallies').innerHTML = talliesHtml;
+
+        // Render chart
+        const ctx = document.getElementById('results-chart').getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: Object.keys(ballot.tallies),
+            datasets: [{
+              label: 'Votes',
+              data: Object.values(ballot.tallies),
+              backgroundColor: '#007bff'
+            }]
+          },
+          options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+      } catch (err) {
+        document.body.innerHTML = '<div class="alert alert-danger m-3">Failed to load results</div>';
+      }
+    }
+
+    loadResults();
+  </script>
+</body>
+</html>

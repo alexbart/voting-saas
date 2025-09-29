@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Dashboard — Voting SaaS</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+  </head>
+  <body class="hold-transition sidebar-mini">
+    <div class="wrapper">
+      <!-- Navbar -->
+      <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+        <ul class="navbar-nav ml-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="#" id="logout">Logout</a>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Sidebar -->
+      <aside class="main-sidebar sidebar-dark-primary elevation-4">
+        <a href="dashboard.html" class="brand-link">
+          <span class="brand-text font-weight-light">Voting SaaS Admin</span>
+        </a>
+        <div class="sidebar">
+          <nav class="mt-2">
+            <ul
+              class="nav nav-pills nav-sidebar flex-column"
+              data-widget="treeview"
+              role="menu"
+            >
+              <li class="nav-item">
+                <a href="dashboard.html" class="nav-link active">
+                  <i class="nav-icon fas fa-tachometer-alt"></i>
+                  <p>Dashboard</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="create-election.html" class="nav-link">
+                  <i class="nav-icon fas fa-plus-circle"></i>
+                  <p>Create Election</p>
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </aside>
+
+      <!-- Content -->
+      <div class="content-wrapper">
+        <div class="content-header">
+          <div class="container-fluid">
+            <h1 class="m-0">Elections Management</h1>
+          </div>
+        </div>
+        <div class="content">
+          <div class="container-fluid">
+            <div class="row" id="stats"></div>
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Active Elections</h3>
+              </div>
+              <div class="card-body">
+                <table class="table table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Status</th>
+                      <th>Votes</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="elections-table">
+                    <tr>
+                      <td colspan="4" class="text-center">Loading...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+    <script>
+      const token = localStorage.getItem("token");
+      if (!token) window.location.href = "../index.html";
+
+      document.getElementById("logout").addEventListener("click", () => {
+        localStorage.removeItem("token");
+        window.location.href = "../index.html";
+      });
+
+      async function loadElections() {
+        try {
+          const res = await fetch("/api/elections/context/school", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          const tbody = document.getElementById("elections-table");
+          if (data.success && data.data.length > 0) {
+            tbody.innerHTML = data.data
+              .map(
+                (e) => `
+    <tr data-election-id="${e.id}">
+      <td>${e.title}</td>
+      <td><span class="badge ${
+        e.status === "active"
+          ? "badge-success"
+          : e.status === "closed"
+          ? "badge-danger"
+          : "badge-warning"
+      }">${e.status}</span></td>
+      <td>Loading...</td>
+      <td>
+        ${
+          e.status === "scheduled"
+            ? `<button class="btn btn-sm btn-primary activate-btn" data-id="${e.id}">Activate</button>`
+            : ""
+        }
+        ${
+          e.status === "active"
+            ? `<button class="btn btn-sm btn-danger close-btn" data-id="${e.id}">Close</button>`
+            : ""
+        }
+        <button class="btn btn-sm btn-info results-btn" data-id="${
+          e.id
+        }">Results</button>
+        ${e.status === 'scheduled' ? `<button class="btn btn-sm btn-outline-danger delete-btn" data-id="${e.id}">Delete</button>` : ''}
+      </td>
+    </tr>
+  `
+              )
+              .join("");
+
+            // Load vote counts
+            data.data.forEach((e) => {
+              fetch(`/api/votes/results/${e.id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              }).then((r) => r.json()).then((res) => {
+                  if (res.success) {
+                    const votes = res.data[0]?.total_votes || 0;
+                    // Find row by data-id (we'll add it to the row)
+                    const row = document.querySelector(`tr[data-election-id="${e.id}"]`);
+                    if (row) {
+                      // Update the 3rd column (votes)
+                      row.cells[2].textContent = votes;
+                    }
+                  }
+                });
+            });
+
+            // Add event listeners
+            document.querySelectorAll(".activate-btn").forEach((btn) => {
+              btn.addEventListener("click", async () => {
+                const id = btn.dataset.id;
+                await fetch(`/api/elections/${id}/activate`, {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                loadElections();
+              });
+            });
+            document.querySelectorAll(".close-btn").forEach((btn) => {
+              btn.addEventListener("click", async () => {
+                if (
+                  !confirm(
+                    "Close this election? Voters will no longer be able to vote."
+                  )
+                )
+                  return;
+                const id = btn.dataset.id;
+                await fetch(`/api/elections/${id}/close`, {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                loadElections();
+              });
+            });
+            document.querySelectorAll(".results-btn").forEach((btn) => {
+              btn.addEventListener("click", () => {
+                const id = btn.dataset.id;
+                window.open(`/admin/results.html?id=${id}`, "_blank");
+              });
+            });
+          } else {
+            tbody.innerHTML =
+              '<tr><td colspan="4" class="text-center">No elections found</td></tr>';
+          }
+        } catch (err) {
+          document.getElementById("elections-table").innerHTML =
+            '<tr><td colspan="4" class="text-center text-danger">Failed to load</td></tr>';
+        }
+      }
+
+      // Simple :contains polyfill
+      if (!Element.prototype.matches) {
+        Element.prototype.matches =
+          Element.prototype.msMatchesSelector ||
+          Element.prototype.webkitMatchesSelector;
+      }
+
+      loadElections();
+    </script>
+  </body>
+</html>

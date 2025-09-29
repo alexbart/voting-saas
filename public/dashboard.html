@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Elections — Voting SaaS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="hold-transition sidebar-mini">
+  <div class="wrapper">
+    <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+      <ul class="navbar-nav ml-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="#" id="logout">Logout</a>
+        </li>
+      </ul>
+    </nav>
+    <div class="content-wrapper">
+      <div class="content-header">
+        <div class="container-fluid">
+          <h1 class="m-0">Active Elections</h1>
+        </div>
+      </div>
+      <div class="content">
+        <div class="container-fluid">
+          <div id="elections"></div>
+          <div id="no-elections" class="d-none text-center mt-5">
+            <p class="lead">No active elections</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = 'index.html';
+
+    document.getElementById('logout').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      window.location.href = 'index.html';
+    });
+
+    async function loadElections() {
+      const container = document.getElementById('elections');
+      const noElections = document.getElementById('no-elections');
+      try {
+        const res = await fetch('/api/elections/context/school', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.data.length > 0) {
+          container.innerHTML = data.data.map(e => `
+            <div class="card mb-3">
+              <div class="card-body">
+                <h5 class="card-title">${e.title}</h5>
+                <p class="card-text">${e.description || ''}</p>
+                <small class="text-muted">
+                  ${new Date(e.start_time).toLocaleString()} – ${new Date(e.end_time).toLocaleString()}
+                </small>
+                <a href="vote.html?id=${e.id}" class="btn btn-primary mt-2">Vote Now</a>
+              </div>
+            </div>
+          `).join('');
+          noElections.classList.add('d-none');
+        } else {
+          noElections.classList.remove('d-none');
+        }
+      } catch (err) {
+        container.innerHTML = '<div class="alert alert-danger">Failed to load elections</div>';
+      }
+    }
+
+    loadElections();
+  </script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create Election — Voting SaaS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+</head>
+<body class="hold-transition sidebar-mini">
+  <div class="wrapper">
+    <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+      <ul class="navbar-nav ml-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="#" id="logout">Logout</a>
+        </li>
+      </ul>
+    </nav>
+    <aside class="main-sidebar sidebar-dark-primary elevation-4">
+      <a href="dashboard.html" class="brand-link">
+        <span class="brand-text font-weight-light">Voting SaaS Admin</span>
+      </a>
+      <div class="sidebar">
+        <nav class="mt-2">
+          <ul class="nav nav-pills nav-sidebar flex-column">
+            <li class="nav-item">
+              <a href="dashboard.html" class="nav-link">
+                <i class="nav-icon fas fa-tachometer-alt"></i>
+                <p>Dashboard</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="create-election.html" class="nav-link active">
+                <i class="nav-icon fas fa-plus-circle"></i>
+                <p>Create Election</p>
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </aside>
+
+    <div class="content-wrapper">
+      <div class="content-header">
+        <div class="container-fluid">
+          <h1 class="m-0">Create New Election</h1>
+        </div>
+      </div>
+      <div class="content">
+        <div class="container-fluid">
+          <div class="card">
+            <div class="card-body">
+              <div id="alert" class="alert alert-danger d-none"></div>
+              <form id="electionForm">
+                <div class="form-group">
+                  <label>Title</label>
+                  <input type="text" class="form-control" id="title" required>
+                </div>
+                <div class="form-group">
+                  <label>Description</label>
+                  <textarea class="form-control" id="description"></textarea>
+                </div>
+                <div class="form-group">
+                  <label>Start Time (UTC)</label>
+                  <input type="datetime-local" class="form-control" id="start_time" required>
+                </div>
+                <div class="form-group">
+                  <label>End Time (UTC)</label>
+                  <input type="datetime-local" class="form-control" id="end_time" required>
+                </div>
+                <div class="form-group">
+                  <label>Ballot Question</label>
+                  <input type="text" class="form-control" id="question" required>
+                </div>
+                <div class="form-group">
+                  <label>Candidates (one per line)</label>
+                  <textarea class="form-control" id="candidates" rows="4" placeholder="Alice&#10;Bob&#10;Carol" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Create Election</button>
+                <a href="dashboard.html" class="btn btn-secondary ml-2">Cancel</a>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '../index.html';
+
+    document.getElementById('logout').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      window.location.href = '../index.html';
+    });
+
+    document.getElementById('electionForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const alert = document.getElementById('alert');
+      try {
+        const title = document.getElementById('title').value;
+        const description = document.getElementById('description').value;
+        const start = new Date(document.getElementById('start_time').value).toISOString();
+        const end = new Date(document.getElementById('end_time').value).toISOString();
+        const question = document.getElementById('question').value;
+        const candidates = document.getElementById('candidates').value
+          .split('\n')
+          .map(s => s.trim())
+          .filter(s => s);
+
+        if (candidates.length < 2) {
+          throw new Error('At least 2 candidates required');
+        }
+
+        const payload = {
+          title,
+          description,
+          context_type: 'school',
+          start_time: start,
+          end_time: end,
+          ballot: {
+            question,
+            options: candidates,
+            ballot_type: 'single_choice'
+          }
+        };
+
+        const res = await fetch('/api/elections', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert.className = 'alert alert-success d-block';
+          alert.textContent = 'Election created successfully!';
+          setTimeout(() => window.location.href = 'dashboard.html', 1500);
+        } else {
+          throw new Error(data.message);
+        }
+      } catch (err) {
+        alert.className = 'alert alert-danger d-block';
+        alert.textContent = err.message || 'Failed to create election';
+        alert.classList.remove('d-none');
+      }
+    });
+  </script>
+</body>
+</html>
