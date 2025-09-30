@@ -1,6 +1,8 @@
 // src/app.js
 const path = require("path");
 const express = require("express");
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 const helmet = require("helmet");
 const cors = require("cors");
 const morgan = require("morgan");
@@ -8,6 +10,9 @@ const ipCapture = require("./middleware/ipCapture");
 const authRoutes = require("./modules/auth/routes");
 const electionRoutes = require("./modules/elections/routes");
 const voteRoutes = require("./modules/votes/routes");
+const auditRoutes = require("./modules/audit/routes");
+
+
 
 const app = express();
 
@@ -21,10 +26,15 @@ app.use(express.json({ limit: "10mb" }));
 app.use(morgan("combined"));
 app.use(ipCapture);
 app.use(express.static(path.join(__dirname, "../public")));
+
+// Add before other routes
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/elections", electionRoutes);
 app.use("/api/votes", voteRoutes);
+app.use("/api/audit", auditRoutes);
+
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -48,6 +48,12 @@
                   <p>Create Election</p>
                 </a>
               </li>
+              <li class="nav-item">
+                <a href="audit.html" class="nav-link">
+                  <i class="nav-icon fas fa-history"></i>
+                  <p>Audit Logs</p>
+                </a>
+              </li>
             </ul>
           </nav>
         </div>
@@ -135,7 +141,11 @@
         <button class="btn btn-sm btn-info results-btn" data-id="${
           e.id
         }">Results</button>
-        ${e.status === 'scheduled' ? `<button class="btn btn-sm btn-outline-danger delete-btn" data-id="${e.id}">Delete</button>` : ''}
+        ${
+          e.status === "scheduled"
+            ? `<button class="btn btn-sm btn-outline-danger delete-btn" data-id="${e.id}">Delete</button>`
+            : ""
+        }
       </td>
     </tr>
   `
@@ -146,11 +156,15 @@
             data.data.forEach((e) => {
               fetch(`/api/votes/results/${e.id}`, {
                 headers: { Authorization: `Bearer ${token}` },
-              }).then((r) => r.json()).then((res) => {
+              })
+                .then((r) => r.json())
+                .then((res) => {
                   if (res.success) {
                     const votes = res.data[0]?.total_votes || 0;
                     // Find row by data-id (we'll add it to the row)
-                    const row = document.querySelector(`tr[data-election-id="${e.id}"]`);
+                    const row = document.querySelector(
+                      `tr[data-election-id="${e.id}"]`
+                    );
                     if (row) {
                       // Update the 3rd column (votes)
                       row.cells[2].textContent = votes;

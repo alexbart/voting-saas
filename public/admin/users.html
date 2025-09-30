@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Users — Voting SaaS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+</head>
+<body class="hold-transition sidebar-mini">
+  <div class="wrapper">
+    <!-- Navbar & Sidebar -->
+    <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+      <ul class="navbar-nav ml-auto">
+        <li class="nav-item"><a class="nav-link" href="#" id="logout">Logout</a></li>
+      </ul>
+    </nav>
+    <aside class="main-sidebar sidebar-dark-primary elevation-4">
+      <a href="dashboard.html" class="brand-link">
+        <span class="brand-text font-weight-light">Voting SaaS Admin</span>
+      </a>
+      <div class="sidebar">
+        <nav class="mt-2">
+          <ul class="nav nav-pills nav-sidebar flex-column">
+            <li class="nav-item"><a href="dashboard.html" class="nav-link"><i class="nav-icon fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li class="nav-item"><a href="users.html" class="nav-link active"><i class="nav-icon fas fa-users"></i> Users</a></li>
+            <li class="nav-item"><a href="audit.html" class="nav-link"><i class="nav-icon fas fa-history"></i> Audit Logs</a></li>
+          </ul>
+        </nav>
+      </div>
+    </aside>
+
+    <div class="content-wrapper">
+      <div class="content-header">
+        <div class="container-fluid">
+          <h1 class="m-0">User Management</h1>
+        </div>
+      </div>
+      <div class="content">
+        <div class="container-fluid">
+          <div class="card">
+            <div class="card-body">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Context</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table">
+                  <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '../index.html';
+
+    document.getElementById('logout').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      window.location.href = '../index.html';
+    });
+
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/auth/users', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const tbody = document.getElementById('users-table');
+        if (data.success) {
+          tbody.innerHTML = data.data.map(user => `
+            <tr>
+              <td>${user.name}</td>
+              <td>${user.email}</td>
+              <td>${user.role}</td>
+              <td>${user.context_type}</td>
+              <td>
+                <span class="badge ${user.is_active ? 'badge-success' : 'badge-secondary'}">
+                  ${user.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </td>
+              <td>
+                ${user.is_active ? 
+                  `<button class="btn btn-sm btn-outline-danger deactivate-btn" data-id="${user.id}">Deactivate</button>` 
+                  : `<span class="text-muted">—</span>`}
+              </td>
+            </tr>
+          `).join('');
+
+          // Deactivate handler
+          document.querySelectorAll('.deactivate-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              if (!confirm('Deactivate this user? They will lose access.')) return;
+              const id = btn.dataset.id;
+              await fetch(`/api/auth/users/${id}/deactivate`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              loadUsers();
+            });
+          });
+        }
+      } catch (err) {
+        document.getElementById('users-table').innerHTML = '<tr><td colspan="6" class="text-danger text-center">Failed to load</td></tr>';
+      }
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>
